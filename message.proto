@@ -1,0 +1,11 @@
+package com.example.glowybits.rcp;
+
+message RpcMessage {
+  enum Action {
+    FRAMES_PER_SECOND = 0;
+    CHANGE_MODE       = 1;
+  }
+  required Action action = 1; 
+  optional int32 arg1 = 2;
+}
+
