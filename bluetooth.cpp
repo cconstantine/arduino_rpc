@@ -1,13 +1,11 @@
 #include <Arduino.h>
-#include <SoftwareSerial.h>
 #include "bluetooth.h"
-#include <MemoryFree.h>
 
 void Rpc::init() {
   Rpc::instance = new Rpc();
 }
 
-Rpc::Rpc(): to_read(0) {
+Rpc::Rpc(): to_read(0), lastRid(1) {
   memset(in_buffer, 0, sizeof(in_buffer));
 }
 
@@ -15,13 +13,14 @@ Rpc* Rpc::instance;
 
 int Rpc::next_message(com_example_glowybits_rcp_RpcMessage *msg) {
   uint32_t msg_size = 0;
-  if( Serial.available() >= 2) {   
-    msg_size = Serial.read();
-    msg_size = (msg_size << 8) + Serial.read();
+  if( Serial1.available() >= 2) {   
+    msg_size = Serial1.read();
+    msg_size = (msg_size << 8) + Serial1.read();
     
-    while(Serial.available() < msg_size){}
     for(int i = 0;i < msg_size;++i) {
-      in_buffer[i] = Serial.read();
+      while(!Serial1.available() );
+
+      in_buffer[i] = Serial1.read();
     }
     pb_istream_t istream = pb_istream_from_buffer(in_buffer, msg_size);
     
@@ -43,7 +42,7 @@ int Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
   
   int to_write = ostream.bytes_written + 2;
   for(int i = 0;i < to_write;) {
-    i += Serial.write(out_buffer[i]);
+    i += Serial1.write(out_buffer[i]);
   }
   return to_write;
 }
@@ -53,7 +52,7 @@ void Rpc::debug(const char* desc) {
   memset(&msg, 0, sizeof(msg));
   
   msg.action = com_example_glowybits_rcp_RpcMessage_Action_DEBUG;
-  
+  msg.rid = lastRid++;
   msg.has_arg1 = false;
   
   msg.has_description = true;

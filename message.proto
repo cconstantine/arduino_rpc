@@ -5,10 +5,15 @@ message RpcMessage {
     FRAMES_PER_SECOND = 0;
     CHANGE_MODE       = 1;
     CHANGE_BRIGHTNESS = 2;
+    CHANGE_SPEED      = 3;
+    CHANGE_RAINBOW_SPD= 4;
+    CHANGE_WIDTH      = 5;
     DEBUG             = 10;
   }
-  required Action action = 1; 
-  optional int32 arg1 = 2;
-  optional string description = 3;
+  required int32 rid = 1;
+  required Action action = 2; 
+  optional int32 arg1 = 3;
+  optional float arg2 = 5;
+  optional string description = 4;
 }
 

@@ -19,6 +19,7 @@ class Rpc {
  private:
   Rpc();
 
+  uint32_t lastRid;
   uint8_t to_read;
   uint8_t in_buffer[com_example_glowybits_rcp_RpcMessage_size];
 
