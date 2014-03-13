@@ -1,32 +1,45 @@
-#include <Arduino.h>
+#include <Arduino.h> 
 #include "bluetooth.h"
 
 void Rpc::init() {
   Rpc::instance = new Rpc();
 }
 
-Rpc::Rpc(): to_read(0), lastRid(1) {
+Rpc::Rpc(): to_read(0), lastRid(1), read_offset(0) {
   memset(in_buffer, 0, sizeof(in_buffer));
 }
 
 Rpc* Rpc::instance;
 
-int Rpc::next_message(com_example_glowybits_rcp_RpcMessage *msg) {
-  uint32_t msg_size = 0;
-  if( Serial1.available() >= 2) {   
-    msg_size = Serial1.read();
-    msg_size = (msg_size << 8) + Serial1.read();
-    
-    for(int i = 0;i < msg_size;++i) {
-      while(!Serial1.available() );
+void Rpc::reset() {
+  to_read = 0;
+  read_offset = 0;
+  memset(in_buffer, 0, sizeof(in_buffer));
+}
 
-      in_buffer[i] = Serial1.read();
+int Rpc::next_message(com_example_glowybits_rcp_RpcMessage *msg) {
+  
+  if(to_read == 0 && read_offset == 0 && Serial1.available() >= 2) {
+    to_read = Serial1.read();
+    to_read = (to_read << 8) + Serial1.read();
+
+    if (to_read > com_example_glowybits_rcp_RpcMessage_size) {
+      while(Serial1.available()) {
+        Serial1.read();
+      }
+      reset();
     }
-    pb_istream_t istream = pb_istream_from_buffer(in_buffer, msg_size);
+    return 0;
+  } else if (to_read == 0 && read_offset != 0) {
+    pb_istream_t istream = pb_istream_from_buffer(in_buffer, read_offset);
     
-    if (pb_decode(&istream, com_example_glowybits_rcp_RpcMessage_fields, msg)) {
-      return msg_size;
-    }
+    bool ret = pb_decode(&istream, com_example_glowybits_rcp_RpcMessage_fields, msg);
+    reset();
+    return ret;
+  } else if (to_read > 0 && Serial1.available()) {
+    in_buffer[read_offset] = Serial1.read();
+    ++read_offset;
+    to_read -= 1;
   }
   return 0;
 }
@@ -35,7 +48,10 @@ int Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
   uint8_t out_buffer[com_example_glowybits_rcp_RpcMessage_size + 2];
 
   pb_ostream_t ostream = pb_ostream_from_buffer(out_buffer+2, com_example_glowybits_rcp_RpcMessage_size);
-  pb_encode(&ostream, com_example_glowybits_rcp_RpcMessage_fields, msg);
+
+  if (!pb_encode(&ostream, com_example_glowybits_rcp_RpcMessage_fields, msg)) {
+    return 0;
+  }
 
   out_buffer[0] = 0xFF & (ostream.bytes_written >> 8);
   out_buffer[1] = 0xFF & ostream.bytes_written;
@@ -44,7 +60,7 @@ int Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
   for(int i = 0;i < to_write;) {
     i += Serial1.write(out_buffer[i]);
   }
-  return to_write;
+  return  ostream.bytes_written ;
 }
 
 void Rpc::debug(const char* desc) {

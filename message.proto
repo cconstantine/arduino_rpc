@@ -10,6 +10,7 @@ message RpcMessage {
     CHANGE_WIDTH      = 5;
     DEBUG             = 10;
   }
+
   required int32 rid = 1;
   required Action action = 2; 
   optional int32 arg1 = 3;

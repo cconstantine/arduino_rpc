@@ -19,8 +19,11 @@ class Rpc {
  private:
   Rpc();
 
+  void state();
+  void reset();
   uint32_t lastRid;
-  uint8_t to_read;
+  uint16_t to_read;
+  uint16_t read_offset;
   uint8_t in_buffer[com_example_glowybits_rcp_RpcMessage_size];
 
 };
