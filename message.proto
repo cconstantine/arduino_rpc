@@ -1,20 +1,26 @@
 package com.example.glowybits.rcp;
 
-message RpcMessage {
-  enum Action {
-    FRAMES_PER_SECOND = 0;
-    CHANGE_MODE       = 1;
-    CHANGE_BRIGHTNESS = 2;
-    CHANGE_SPEED      = 3;
-    CHANGE_RAINBOW_SPD= 4;
-    CHANGE_WIDTH      = 5;
-    DEBUG             = 10;
-  }
 
-  required int32 rid = 1;
-  required Action action = 2; 
-  optional int32 arg1 = 3;
-  optional float arg2 = 5;
-  optional string description = 4;
+message ChangeSettings {
+  enum Mode {
+    CHASE  = 0;
+    STARS  = 1;
+    LINES  = 2;
+    SPIRAL = 3;
+  } 
+  required Mode mode = 1;
+  required int32 brightness = 2;
+  required float speed = 3;
+  required float rainbow_speed = 4;
+  required float width = 5;
+}
+
+message Status {
+  required uint32 fps = 1;
+}
+
+message RpcMessage {
+  optional ChangeSettings settings = 1;
+  optional Status status = 2;
 }
 

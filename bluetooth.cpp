@@ -63,18 +63,5 @@ int Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
   return  ostream.bytes_written ;
 }
 
-void Rpc::debug(const char* desc) {
-  com_example_glowybits_rcp_RpcMessage msg;
-  memset(&msg, 0, sizeof(msg));
-  
-  msg.action = com_example_glowybits_rcp_RpcMessage_Action_DEBUG;
-  msg.rid = lastRid++;
-  msg.has_arg1 = false;
-  
-  msg.has_description = true;
-  strncpy(msg.description, desc, sizeof(msg.description)-1);
-  
-  int delta = send_message(&msg);
-}
   
   
