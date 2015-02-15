@@ -4,15 +4,17 @@ package com.example.glowybits.rcp;
 message ChangeSettings {
   enum Mode {
     CHASE  = 0;
-    STARS  = 1;
-    LINES  = 2;
-    SPIRAL = 3;
+    LINES  = 1;
+    SPIRAL = 2;
   } 
   required Mode mode = 1;
   required int32 brightness = 2;
   required float speed = 3;
   required float rainbow_speed = 4;
   required float width = 5;
+  required uint32 color1 = 6;
+  required uint32 color2 = 7;
+  required uint32 color3 = 8;
 }
 
 message Status {
