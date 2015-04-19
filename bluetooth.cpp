@@ -1,67 +1,120 @@
 #include <Arduino.h> 
 #include "bluetooth.h"
 
-void Rpc::init() {
-  Rpc::instance = new Rpc();
+Rpc::Rpc() : in_buffer_size(sizeof(in_buffer))
+{ }
+
+bool Rpc::next_message(com_example_glowybits_rcp_RpcMessage *msg) {
+  size_t bytesRead = next_packet();
+  if (bytesRead) {
+    pb_istream_t istream = pb_istream_from_buffer(in_buffer, bytesRead);
+    return pb_decode(&istream, com_example_glowybits_rcp_RpcMessage_fields,   msg);
+  }
+  return false;
 }
 
-Rpc::Rpc(): to_read(0), lastRid(1), read_offset(0) {
-  memset(in_buffer, 0, sizeof(in_buffer));
+bool Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
+  uint8_t out_buffer[com_example_glowybits_rcp_RpcMessage_size];
+
+  pb_ostream_t ostream = pb_ostream_from_buffer(out_buffer, com_example_glowybits_rcp_RpcMessage_size);
+
+  if (!pb_encode(&ostream, com_example_glowybits_rcp_RpcMessage_fields, msg)) {
+    return false;
+  }
+  return send_packet(out_buffer, ostream.bytes_written) == (ostream.bytes_written + 2);
 }
 
-Rpc* Rpc::instance;
 
-void Rpc::reset() {
+SerialRpc::SerialRpc(Stream& s):
+  Rpc(),
+  serial(s),
+  lastRid(0),
+  to_read(0),
+  read_offset(0)
+{ }
+
+void SerialRpc::reset() {
   to_read = 0;
   read_offset = 0;
-  memset(in_buffer, 0, sizeof(in_buffer));
+  memset(in_buffer, 0, in_buffer_size);
 }
 
-int Rpc::next_message(com_example_glowybits_rcp_RpcMessage *msg) {
-  
-  if(to_read == 0 && read_offset == 0 && Serial1.available() >= 2) {
-    to_read = Serial1.read();
-    to_read = (to_read << 8) + Serial1.read();
+bool SerialRpc::next_message(com_example_glowybits_rcp_RpcMessage *msg) {
+  bool ret = Rpc::next_message(msg);
+  if (ret) {
+    reset();
+  }
+  return ret;
+}
 
-    if (to_read > com_example_glowybits_rcp_RpcMessage_size) {
-      while(Serial1.available()) {
-        Serial1.read();
+bool SerialRpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
+  return Rpc::send_message(msg);
+}
+
+
+size_t SerialRpc::next_packet() {  
+  if(to_read == 0 && read_offset == 0 && serial.available() >= 2) {
+    to_read = serial.read();
+    to_read = (to_read << 8) + serial.read();
+
+    if (to_read > in_buffer_size) {
+      while(serial.available()) {
+        serial.read();
       }
       reset();
     }
     return 0;
   } else if (to_read == 0 && read_offset != 0) {
-    pb_istream_t istream = pb_istream_from_buffer(in_buffer, read_offset);
-    
-    bool ret = pb_decode(&istream, com_example_glowybits_rcp_RpcMessage_fields, msg);
-    reset();
-    return ret;
-  } else if (to_read > 0 && Serial1.available()) {
-    in_buffer[read_offset] = Serial1.read();
+    return read_offset;
+  } else if (to_read > 0 && serial.available()) {
+    in_buffer[read_offset] = serial.read();
     ++read_offset;
     to_read -= 1;
   }
   return 0;
 }
 
-int Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg) {
-  uint8_t out_buffer[com_example_glowybits_rcp_RpcMessage_size + 2];
+size_t SerialRpc::send_packet(void* buf, size_t size) {
 
-  pb_ostream_t ostream = pb_ostream_from_buffer(out_buffer+2, com_example_glowybits_rcp_RpcMessage_size);
-
-  if (!pb_encode(&ostream, com_example_glowybits_rcp_RpcMessage_fields, msg)) {
-    return 0;
-  }
-
-  out_buffer[0] = 0xFF & (ostream.bytes_written >> 8);
-  out_buffer[1] = 0xFF & ostream.bytes_written;
+  serial.write((uint8_t)(0xFF & (size >> 8)));
+  serial.write((uint8_t)(0xFF & size));
   
-  int to_write = ostream.bytes_written + 2;
-  for(int i = 0;i < to_write;) {
-    i += Serial1.write(out_buffer[i]);
+  for(size_t i = 0;i < size;) {
+    i += serial.write(((char*)buf)[i]);
   }
-  return  ostream.bytes_written ;
+  return  size;
 }
 
+
+RF24Rpc::RF24Rpc(BigRF24& r) : Rpc(), radio(r)
+{ }
   
+
+bool RF24Rpc::next_message(com_example_glowybits_rcp_RpcMessage *msg)
+{
+  return Rpc::next_message(msg);
+}
+
+bool RF24Rpc::send_message(com_example_glowybits_rcp_RpcMessage *msg)
+{
+  return Rpc::send_message(msg);
+}
+
+size_t RF24Rpc::next_packet()
+{
+  size_t ret = 0;
+  if (radio.available()) {
+    ret = radio.read(in_buffer, in_buffer_size);
+  }
   
+  return ret;
+}
+
+size_t RF24Rpc::send_packet(void* buf, size_t s)
+{
+  if(radio.write(buf, s)) {
+    return s;
+  }
+
+  return 0;
+}

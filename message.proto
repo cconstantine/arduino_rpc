@@ -4,8 +4,9 @@ package com.example.glowybits.rcp;
 message ChangeSettings {
   enum Mode {
     CHASE  = 0;
-    LINES  = 1;
+    STARS  = 1;
     SPIRAL = 2;
+    JOINT  = 3;
   } 
   required Mode mode = 1;
   required int32 brightness = 2;
@@ -19,6 +20,11 @@ message ChangeSettings {
 
 message Status {
   required uint32 fps = 1;
+}
+
+message PingTest {
+  required uint32 time_sent = 1;
+  optional string message = 2;
 }
 
 message RpcMessage {
